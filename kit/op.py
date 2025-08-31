@@ -5,8 +5,17 @@ import subprocess
 
 import numpy as np
 
+
 import torch
 import torchac
+
+# Select device globally
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+# elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+#     device = torch.device('mps')
+else:
+    device = torch.device('cpu')
 
 from pytorch3d.ops.knn import knn_gather, knn_points
 from pytorch3d.ops.sample_farthest_points import sample_farthest_points
@@ -29,12 +38,15 @@ class Ticker:
     def __init__(self):
         self.dict = {}
     
+
     def start_count(self, label):
-        torch.cuda.synchronize()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
         self.dict[label] = time.time()
-    
+
     def end_count(self, label):
-        torch.cuda.synchronize()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
         self.dict[label] = time.time() - self.dict[label]
 
     def set_time(self, label, value):
@@ -73,9 +85,8 @@ def get_self_cd(pos):
 
 
 def n_scale_batch(x_windows, margin=0.01):
-
-    device = x_windows.device
     M, K, _ = x_windows.shape
+    x, y, z = x_windows[:, :, 0], x_windows[:, :, 1], x_windows[:, :, 2]
 
     x, y, z = x_windows[:, :, 0], x_windows[:, :, 1], x_windows[:, :, 2]
     x_max, x_min, y_max, y_min, z_max, z_min = x.max(dim=1)[0], x.min(dim=1)[0], y.max(dim=1)[0], y.min(dim=1)[0], z.max(dim=1)[0], z.min(dim=1)[0]
@@ -83,10 +94,8 @@ def n_scale_batch(x_windows, margin=0.01):
     
     longest = torch.max(torch.cat([x_max-x_min, y_max-y_min, z_max-z_min], dim=1), dim=1)[0].to(device)
     scaling = (1-margin) / longest
-    
     x_windows = x_windows * scaling.view(M, 1, 1)
-
-    return x_windows
+    return x_windows.to(device)
 
 
 def reorder(points, ref_points):
@@ -95,10 +104,8 @@ def reorder(points, ref_points):
         points: 
         ref_points: 
     '''
-
-    dist = torch.cdist(points.cpu(), ref_points.cpu())
-    cloest_idx = torch.argmin(dist, dim=0).cuda()
-
+    dist = torch.cdist(points.to(device), ref_points.to(device))
+    cloest_idx = torch.argmin(dist, dim=0).to(device)
     return cloest_idx
 
 ##################################################
