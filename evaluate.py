@@ -9,7 +9,7 @@ parser.add_argument('--decompressed_path', type=str, default='./data/decompresse
 parser.add_argument('--local_window_size', type=str, default='128', help='Local window size.')
 parser.add_argument('--tmc_path', type=str, default='./tmc3-xos', help='Path to TMC executable.')
 parser.add_argument('--resolution', type=str, default='1023', help='Point cloud resolution (peak signal).')
-parser.add_argument('--verbose', type=str, default='True', help='Print details.')
+parser.add_argument('--verbose', type=str, default='False', help='Print details.')
 
 args = parser.parse_args()
 
@@ -27,7 +27,7 @@ subprocess.run([
     '--model_load_path', args.model_load_path,
     '--local_window_size', args.local_window_size,
     '--tmc_path', args.tmc_path,
-    '--verbose', args.verbose
+    # '--verbose', args.verbose
 ], check=True)
 
 # Step 2: Decompression
@@ -37,7 +37,7 @@ subprocess.run([
     '--compressed_path', args.compressed_path,
     '--decompressed_path', args.decompressed_path,
     '--tmc_path', args.tmc_path,
-    '--verbose', args.verbose
+    # '--verbose', args.verbose
 ], check=True)
 
 # Step 3: PSNR Evaluation
