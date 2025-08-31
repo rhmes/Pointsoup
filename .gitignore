@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# Data
+*.csv
+*.tsv
+*.xls
+*.xlsx
+*.h5
+*.hdf5
+*.bin
+*.ply
+
+# Logs
+*.log
+*.out
+*.txt
+
+# Model checkpoints
+*.pt
+*.pth
+
+# Misc
+.DS_Store
+*.swp
+
+# C++/CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+build/
