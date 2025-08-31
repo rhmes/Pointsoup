@@ -1,7 +1,7 @@
 from kit.op import *
 from kit.nn import *
 
-
+# Adaptive Window Downsampling
 class AWDS(nn.Module):
     def __init__(self, channel):
         super(AWDS, self).__init__()
@@ -25,8 +25,8 @@ class AWDS(nn.Module):
         # get skin features: (M, K, C)
 
         return skin_features, bones
-    
 
+# Dilated Window Building Module
 class DWBuild(nn.Module):
     def __init__(self, k):
         super(DWBuild, self).__init__()
@@ -46,7 +46,7 @@ class DWBuild(nn.Module):
 
         return dilated_idx, dilated_windows
 
-
+# Dilated Window Extraction Module
 class DWEM(nn.Module):
     def __init__(self, channel, bottleneck_channel):
         super(DWEM, self).__init__()
@@ -70,8 +70,8 @@ class DWEM(nn.Module):
         mu_sigma = self.regression_head(feature) # -> (M, c*2)
         mu, sigma = mu_sigma[:, :self.bottleneck_channel], torch.exp(mu_sigma[:, self.bottleneck_channel:])
         return mu, sigma
-    
 
+# Feature Refinement Module
 class FeatureRefinement(nn.Module):
     def __init__(self, channel, n_conv_layer):
         super(FeatureRefinement, self).__init__()
@@ -98,7 +98,7 @@ class FeatureRefinement(nn.Module):
         refined_skin_fea = self.linear(fea)
         return refined_skin_fea
 
-
+# Point Generation Module
 class PointGenerator(nn.Module):
     def __init__(self, channel, fold_channel, R_max, r):
         super(PointGenerator, self).__init__()
@@ -133,7 +133,7 @@ class PointGenerator(nn.Module):
 
         return xyz
 
-
+# Dilated Window Upsampling Module
 class DWUS(nn.Module):
     def __init__(self, channel, fold_channel, R_max, r):
         super(DWUS, self).__init__()
