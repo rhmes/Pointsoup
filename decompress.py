@@ -12,9 +12,14 @@ import torchac
 
 import kit.io as io
 import kit.op as op
+import kit.utils as utils
 import network
 
 import warnings
+import multiprocessing
+
+# Set start method for multiprocessing
+multiprocessing.set_start_method("spawn", force=True)
 warnings.filterwarnings("ignore")
 
 seed = 11
@@ -26,8 +31,6 @@ if torch.cuda.is_available():
     device = torch.device('cuda')
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
-# elif torch.backends.mps.is_available():
-#     device = torch.device('mps')
 else:
     device = torch.device('cpu')
 
@@ -47,19 +50,25 @@ parser.add_argument('--verbose', type=bool, help='Print compression details.', d
 parser.add_argument('--dilated_window_size', type=int, help='Dilated window size. (Same value with train.py)', default=8)
 parser.add_argument('--channel', type=int, help='Network channel. (Same value with train.py)', default=128)
 parser.add_argument('--bottleneck_channel', type=int, help='Bottleneck channel. (Same value with train.py)', default=16)
+parser.add_argument('--model_type', help='Model type (pointsoup or pointsoup_sa).', default='pointsoup')
 
 args = parser.parse_args()
 
+# Create decompressed directory if not exists
 if not os.path.exists(args.decompressed_path):
     os.makedirs(args.decompressed_path)
 
-
-model = network.Pointsoup(k=args.dilated_window_size,
-                          channel=args.channel, 
-                          bottleneck_channel=args.bottleneck_channel)
-model.load_state_dict(torch.load(args.model_load_path, map_location=device))
+# Load model
+model = network.model(args, model_type=args.model_type)
+# Load checkpoint
+ckpt = torch.load(args.model_load_path, map_location=device)
+state_dict = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
+# Remap state_dict from old struct to new struct
+new_state_dict = utils.remap_state_dict(state_dict, model)
+model.load_state_dict(new_state_dict, strict=False)
 model = torch.compile(model)
 model = model.to(device).eval()
+
 
 # warm up our model, since the first step of the model is very slow
 model(torch.randn(1, 1024, 3).to(device), 128)
@@ -73,9 +82,9 @@ with torch.no_grad():
     for compressed_bone_path in tqdm(compressed_bones_path_ls):
 
         filename_w_ext = os.path.split(compressed_bone_path[:-6])[-1]
-        compressed_head_path = os.path.join(args.compressed_path, filename_w_ext+'.h.bin')
-        compressed_skin_path = os.path.join(args.compressed_path, filename_w_ext+'.s.bin')
+        head_path, bones_path, skin_path, cache_path = utils.compressed_files(filename_w_ext, args.compressed_path)
         decompressed_path = os.path.join(args.decompressed_path, filename_w_ext+'.bin.ply')
+
 
         ######################################################
         ################## Entropy Modeling ##################
@@ -83,9 +92,8 @@ with torch.no_grad():
 
         ############## 🚩 Bone Decompression ##############
         # (io time is omitted since the tmc process can be done in RAM in practial applications)
-        cache_file_path = os.path.join(args.compressed_path, '__cache__.ply')
-        bone_dec_time = op.tmc_decompress(args.tmc_path, compressed_bone_path, cache_file_path)
-        rec_bones = torch.tensor(io.read_point_cloud(cache_file_path)).float().to(device)
+        bone_dec_time = op.tmc_decompress(args.tmc_path, bones_path, cache_path)
+        rec_bones = torch.tensor(io.read_point_cloud(cache_path)).float().to(device)
         M = rec_bones.shape[0]
 
         ticker.set_time('TMCDecTime', bone_dec_time) # 🕒 ✔️
@@ -96,7 +104,7 @@ with torch.no_grad():
             
         ticker.start_count('DWBuild') # 🕒 ⏳
 
-        dilated_idx, dilated_windows = model.dw_build(rec_bones)
+        dilated_idx, dilated_windows = model.entropy_model.dw_build(rec_bones)
 
         ticker.end_count('DWBuild') # 🕒 ✔️
         if args.verbose:
@@ -105,9 +113,9 @@ with torch.no_grad():
         ############## 🚩 DWEM ##############
             
         ticker.start_count('DWEM') # 🕒 ⏳
-        
-        mu, sigma = model.dwem(dilated_windows)
-        
+
+        mu, sigma = model.entropy_model.dwem(dilated_windows)
+
         ticker.end_count('DWEM') # 🕒 ✔️
         if args.verbose:
             print('[DWEM]:', ticker.get_time('DWEM'), 's')
@@ -115,13 +123,13 @@ with torch.no_grad():
         ############## 🚩 Arithmetic Decoding ##############
             
         # get vlaue boundries from head file
-        with open(compressed_head_path, 'rb') as fin:
+        with open(head_path, 'rb') as fin:
             local_window_size = np.frombuffer(fin.read(2), dtype=np.uint16)[0]
             min_v_value = np.frombuffer(fin.read(2), dtype=np.int16)[0]
             max_v_value = np.frombuffer(fin.read(2), dtype=np.int16)[0]
 
         # get skin bit stream
-        with open(compressed_skin_path, 'rb') as fin:
+        with open(skin_path, 'rb') as fin:
             bytestream = fin.read()
             
         ticker.start_count('AD') # 🕒 ⏳
@@ -144,8 +152,8 @@ with torch.no_grad():
         ticker.start_count('DWUS') # 🕒 ⏳
 
         # feature stretching
-        rec_skin_fea = model.fea_stretch(quantized_compact_fea)
-        rec_batch_x = model.dwus(rec_skin_fea, rec_bones, dilated_windows, dilated_idx, local_window_size)
+        rec_skin_fea = model.decoder.fea_stretch(quantized_compact_fea)
+        rec_batch_x = model.decoder.dwus(rec_skin_fea, rec_bones, dilated_windows, dilated_idx, local_window_size)
 
         ticker.end_count('DWUS') # 🕒 ✔️
         if args.verbose:
@@ -161,6 +169,6 @@ with torch.no_grad():
 
         # remove cache file
         # but it is ok not to clean it up, it won't affect the code running...
-        output = subprocess.check_output(f'rm {cache_file_path}', shell=True, stderr=subprocess.STDOUT)
+        output = subprocess.check_output(f'rm {cache_path}', shell=True, stderr=subprocess.STDOUT)
 
 print(f'Done. Avg. Decoding time: {time_recoder.dump_avg(precision=3)}s.')
