@@ -131,10 +131,10 @@ def model(ctx, model_type="pointsoup"):
         model = PointsoupSelfAttention(k=ctx.dilated_window_size,
                             channel=ctx.channel, 
                             bottleneck_channel=ctx.bottleneck_channel)
-        print("[TRAIN] Using \033[1;32mPointsoup Self-Attention\033[0m model.")
+        print("[PROC] Using \033[1;32mPointsoup Self-Attention\033[0m model.")
     else:
         model = Pointsoup(k=ctx.dilated_window_size,
                             channel=ctx.channel, 
                             bottleneck_channel=ctx.bottleneck_channel)
-        print("[TRAIN] Using \033[1;34mPointsoup\033[0m model.")
+        print("[PROC] Using \033[1;34mPointsoup\033[0m model.")
     return model
