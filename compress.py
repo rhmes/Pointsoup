@@ -20,9 +20,16 @@ warnings.filterwarnings("ignore")
 seed = 11
 random.seed(seed)
 np.random.seed(seed)
+
 torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+# elif torch.backends.mps.is_available():
+#     device = torch.device('mps')
+else:
+    device = torch.device('cpu')
 
 parser = argparse.ArgumentParser(
     prog='compress.py',
@@ -47,15 +54,16 @@ args = parser.parse_args()
 if not os.path.exists(args.compressed_path):
     os.makedirs(args.compressed_path)
 
+
 model = network.Pointsoup(k=args.dilated_window_size,
                           channel=args.channel, 
                           bottleneck_channel=args.bottleneck_channel)
-model.load_state_dict(torch.load(args.model_load_path))
+model.load_state_dict(torch.load(args.model_load_path, map_location=device))
 model = torch.compile(model)
-model = model.cuda().eval()
+model = model.to(device).eval()
 
 # warm up our model, since the first step of the model is very slow
-model(torch.randn(1, 1024, 3).cuda(), 128)
+model(torch.randn(1, 1024, 3).to(device), 128)
 
 files = np.array(glob(args.input_glob, recursive=True))
 
@@ -66,7 +74,7 @@ with torch.no_grad():
     for file_path in tqdm(files):
 
         pc = io.read_point_cloud(file_path)
-        batch_x = torch.tensor(pc).unsqueeze(0).cuda()
+        batch_x = torch.tensor(pc, dtype=torch.float32).unsqueeze(0).to(device)
         N = batch_x.shape[1]
 
         filename_w_ext = os.path.split(file_path)[-1]
@@ -99,7 +107,7 @@ with torch.no_grad():
         io.save_point_cloud(bones, cache_file_path)
         bone_steam_size, bone_enc_time = op.tmc_compress(args.tmc_path, cache_file_path, compressed_bones_path)
         bone_dec_time = op.tmc_decompress(args.tmc_path, compressed_bones_path, cache_file_path)
-        rec_bones = torch.tensor(io.read_point_cloud(cache_file_path)).float().cuda() # -> (M, 3)
+        rec_bones = torch.tensor(io.read_point_cloud(cache_file_path)).float().to(device) # -> (M, 3)
         
         ticker.set_time('TMCEncTime', bone_enc_time) # 🕒 ✔️
         ticker.set_time('TMCDecTime', bone_dec_time) # 🕒 ✔️

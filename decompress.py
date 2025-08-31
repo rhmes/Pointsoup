@@ -20,9 +20,16 @@ warnings.filterwarnings("ignore")
 seed = 11
 random.seed(seed)
 np.random.seed(seed)
+
 torch.manual_seed(seed)
-torch.cuda.manual_seed(seed)
-torch.cuda.manual_seed_all(seed)
+if torch.cuda.is_available():
+    device = torch.device('cuda')
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+# elif torch.backends.mps.is_available():
+#     device = torch.device('mps')
+else:
+    device = torch.device('cpu')
 
 parser = argparse.ArgumentParser(
     prog='decompress.py',
@@ -46,15 +53,16 @@ args = parser.parse_args()
 if not os.path.exists(args.decompressed_path):
     os.makedirs(args.decompressed_path)
 
+
 model = network.Pointsoup(k=args.dilated_window_size,
                           channel=args.channel, 
                           bottleneck_channel=args.bottleneck_channel)
-model.load_state_dict(torch.load(args.model_load_path))
+model.load_state_dict(torch.load(args.model_load_path, map_location=device))
 model = torch.compile(model)
-model = model.cuda().eval()
+model = model.to(device).eval()
 
 # warm up our model, since the first step of the model is very slow
-model(torch.randn(1, 1024, 3).cuda(), 128)
+model(torch.randn(1, 1024, 3).to(device), 128)
 
 compressed_bones_path_ls = list(glob(os.path.join(args.compressed_path, '*.b.bin')))
 
@@ -77,7 +85,7 @@ with torch.no_grad():
         # (io time is omitted since the tmc process can be done in RAM in practial applications)
         cache_file_path = os.path.join(args.compressed_path, '__cache__.ply')
         bone_dec_time = op.tmc_decompress(args.tmc_path, compressed_bone_path, cache_file_path)
-        rec_bones = torch.tensor(io.read_point_cloud(cache_file_path)).float().cuda()
+        rec_bones = torch.tensor(io.read_point_cloud(cache_file_path)).float().to(device)
         M = rec_bones.shape[0]
 
         ticker.set_time('TMCDecTime', bone_dec_time) # 🕒 ✔️
@@ -122,7 +130,7 @@ with torch.no_grad():
             op._convert_to_int_and_normalize(op.get_cdf_min_max_v(mu-min_v_value, sigma, L=max_v_value-min_v_value+1), needs_normalization=True).cpu(), 
             bytestream
         ) + min_v_value
-        quantized_compact_fea = quantized_compact_fea.float().cuda()
+        quantized_compact_fea = quantized_compact_fea.float().to(device)
 
         ticker.end_count('AD') # 🕒 ✔️
         if args.verbose:
