@@ -19,7 +19,7 @@ dependencies:
   - iopath
   - plyfile==1.0.3
   - pyntcloud==0.3.1
-  - ninja==1.11.1.1
+  - ninja
   - pip:
       - torchac==0.9.3
       - contourpy==1.2.0
@@ -34,3 +34,5 @@ dependencies:
       - six==1.16.0
       - tzdata==2024.1
       - pandas==2.2.1
+      - open3d==0.18.0
+
