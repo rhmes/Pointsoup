@@ -60,65 +60,25 @@ parser.add_argument('--lr_decay_steps', type=int, help='Decays the learning rate
 parser.add_argument('--max_step', type=int, help='Train up to this number of steps.', default=140000)
 parser.add_argument('--step_window', type=int, help='Step window for stats and checkpoints.', default=200)
 parser.add_argument('--model_type', help='Model type (pointsoup or pointsoup_sa).', default='pointsoup')
+parser.add_argument('--reset', action='store_true', help='Reset training from scratch.')
 
 # Parse Arguments
 args = parser.parse_args()
 
-# Save model
-def save_model(model, optimizer, step):
-    torch.save(model.state_dict(), os.path.join(args.model_save_folder, 'ckpt.pt'))
-    torch.save(optimizer.state_dict(), os.path.join(args.model_save_folder, 'optimizer.pt'))
-    with open(os.path.join(args.model_save_folder, 'step.txt'), 'w') as f:
-        f.write(str(step))
-
-# Load model
-def load_model(model, optimizer):
-    step = 0
-    ckpt_path = os.path.join(args.model_save_folder, 'ckpt.pt')
-    op_path = os.path.join(args.model_save_folder, 'optimizer.pt')
-    st_path = os.path.join(args.model_save_folder, 'step.txt')
-    # Check if checkpoint exists
-    if os.path.exists(ckpt_path):
-        print(f"[TRAIN] Loading checkpoint from {ckpt_path}")
-        model.load_state_dict(torch.load(ckpt_path, map_location=device))
-        # Check if optimizer exists
-        if os.path.exists(op_path):
-            print(f"[TRAIN] Loading optimizer from {op_path}")
-            optimizer.load_state_dict(torch.load(op_path, map_location=device))
-        # Check if step exists
-        if os.path.exists(st_path):
-            with open(st_path, 'r') as f:
-                step = int(f.read())
-                print(f"[TRAIN] Resuming from step {step}")
-    return step
-
-# Init model
-def init_model(model_type="pointsoup"):
-    # Select model type:  -- pointsoup -> Pointsoup 
-    #                     -- pointsoup_sa -> Pointsoup Self-Attention
-    if model_type == "pointsoup_sa":
-        model = network.PointsoupSelfAttention(k=args.dilated_window_size,
-                            channel=args.channel, 
-                            bottleneck_channel=args.bottleneck_channel)
-        print("[TRAIN] Using \033[1;32mPointsoup Self-Attention\033[0m model.")
-    else:
-        model = network.Pointsoup(k=args.dilated_window_size,
-                            channel=args.channel, 
-                            bottleneck_channel=args.bottleneck_channel)
-        print("[TRAIN] Using \033[1;34mPointsoup\033[0m model.")
-    return model
-
 # Training function
 def train(loader):
-    # Initialize model and optimizer
-    model = init_model(model_type=args.model_type)
-    # Move model to device and set to training mode
+    # Initialize model 
+    model = network.model(ctx=args, model_type=args.model_type)
     model = model.to(device).train()
+    # Initialize optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
-    # Load latest checkpoint if exists, update global_step if exists
+    # Initialize global step
     global_step = 0
-    global_step = load_model(model, optimizer)
+
+    # Resume training, Load latest checkpoint 
+    if not args.reset:
+        print("[TRAIN] Resume training ...")
+        global_step = io.load_model(model, optimizer, args.model_save_folder, device)
 
     # Restore epoch number
     start = global_step // args.max_step 
@@ -142,14 +102,17 @@ def train(loader):
             loss.backward()
             optimizer.step()
             global_step += 1
+            
             # Update recorders
             cd_recoder.update(chamfer_dist.item())
             bpp_recoder.update(bitrate.item())
             loss_recoder.update(loss.item())
+            
             # Update progress bar postfix
             pbar.set_postfix({
                 "loss": f"{loss.item():.4f}"
             })
+           
             # Print training stats, dump checkpoints per step-window (default: 200)
             if global_step % args.step_window == 0:
                 print(f'[Epoch {epoch}] Step {global_step} | '
@@ -157,7 +120,7 @@ def train(loader):
                     f'Dist: {cd_recoder.dump_avg()} | '
                     f'Rate: {bpp_recoder.dump_avg()}')
                 # Save model
-                save_model(model, optimizer, global_step)
+                io.save_model(model, optimizer, global_step, args.model_save_folder)
 
             # Learning Rate Decay
             if global_step in args.lr_decay_steps:
@@ -180,9 +143,11 @@ if __name__ == '__main__':
     # Create save-model directory
     if not os.path.exists(args.model_save_folder):
         os.makedirs(args.model_save_folder)
+    
     # Read input point clouds
     files = np.array(glob(args.train_glob, recursive=True))[:10000]
     pcs = io.read_point_clouds(files)
+    
     # Pointcloud data loader
     loader = Data.DataLoader(
         dataset = pcs,

@@ -122,3 +122,19 @@ class EncoderSelfAttention(nn.Module):
         compact_fea = self.fea_squeeze(skin_fea)
         return compact_fea, bones
 
+
+# Model type selection:
+#   "pointsoup"    -> Pointsoup (standard)
+#   "pointsoup_sa" -> PointsoupSelfAttention (with self-attention encoder)
+def model(ctx, model_type="pointsoup"):
+    if model_type == "pointsoup_sa":
+        model = PointsoupSelfAttention(k=ctx.dilated_window_size,
+                            channel=ctx.channel, 
+                            bottleneck_channel=ctx.bottleneck_channel)
+        print("[TRAIN] Using \033[1;32mPointsoup Self-Attention\033[0m model.")
+    else:
+        model = Pointsoup(k=ctx.dilated_window_size,
+                            channel=ctx.channel, 
+                            bottleneck_channel=ctx.bottleneck_channel)
+        print("[TRAIN] Using \033[1;34mPointsoup\033[0m model.")
+    return model
