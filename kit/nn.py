@@ -212,3 +212,14 @@ class Folding(nn.Module):
         output_shape = fea.shape[:-1]+(self.fold_ratio,self.out_channel,)
         fea = self.mlp(fea).reshape(output_shape)
         return fea
+
+class SimpleSelfAttention(nn.Module):
+    def __init__(self, dim, heads=4):
+        super().__init__()
+        self.attn = nn.MultiheadAttention(dim, heads, batch_first=True)
+
+    def forward(self, x):
+        # x: (M, C) -> treat as batch=1
+        x = x.unsqueeze(0)         # (1, M, C)
+        out, _ = self.attn(x, x, x)
+        return out.squeeze(0)      # (M, C)
