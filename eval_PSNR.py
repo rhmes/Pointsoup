@@ -17,7 +17,6 @@ parser = argparse.ArgumentParser(
 
 parser.add_argument('--input_glob', type=str, help='Glob pattern to load point clouds.', default='./data/example_pcs/conferenceRoom_1.ply')
 parser.add_argument('--decompressed_path', type=str, help='Path to save decompressed files.', default='./data/decompressed/')
-parser.add_argument('--pcc_metric_path', type=str, help='Path for PccAppMetrics.', default='./PccAppMetrics')
 parser.add_argument('--resolution', type=int, help='Point cloud resolution (peak signal).', default=1023)
 
 # Parse Arguments
