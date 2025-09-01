@@ -43,7 +43,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--compressed_path', type=str, help='Path to save .bin files.', default='./data/compressed/')
 parser.add_argument('--decompressed_path', type=str, help='Path to save decompressed files.', default='./data/decompressed/')
 parser.add_argument('--model_load_path', type=str, help='Directory where to load trained models.', default=f'./model/exp/ckpt.pt')
-parser.add_argument('--tmc_path', type=str, help='TMC to compress bone points.', default='./tmc3')
+parser.add_argument('--tmc_path', type=str, help='TMC to compress bone points.', default='./tmc3-xos')
 
 parser.add_argument('--verbose', type=bool, help='Print compression details.', default=False)
 
@@ -101,7 +101,7 @@ with torch.no_grad():
             
         ticker.start_count('DWBuild') # 🕒 ⏳
 
-        dilated_idx, dilated_windows = model.entropy_model.dw_build(rec_bones)
+        dilated_idx, dilated_windows = model.dw_build(rec_bones)
 
         ticker.end_count('DWBuild') # 🕒 ✔️
         if args.verbose:
@@ -111,7 +111,7 @@ with torch.no_grad():
             
         ticker.start_count('DWEM') # 🕒 ⏳
 
-        mu, sigma = model.entropy_model.dwem(dilated_windows)
+        mu, sigma = model.dwem(dilated_windows)
 
         ticker.end_count('DWEM') # 🕒 ✔️
         if args.verbose:
@@ -149,8 +149,8 @@ with torch.no_grad():
         ticker.start_count('DWUS') # 🕒 ⏳
 
         # feature stretching
-        rec_skin_fea = model.decoder.fea_stretch(quantized_compact_fea)
-        rec_batch_x = model.decoder.dwus(rec_skin_fea, rec_bones, dilated_windows, dilated_idx, local_window_size)
+        rec_skin_fea = model.fea_stretch(quantized_compact_fea)
+        rec_batch_x = model.dwus(rec_skin_fea, rec_bones, dilated_windows, dilated_idx, local_window_size)
 
         ticker.end_count('DWUS') # 🕒 ✔️
         if args.verbose:

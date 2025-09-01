@@ -35,7 +35,8 @@ def load_legacy_checkpoint(new_model, ckpt_path, device="cpu"):
     old_state = torch.load(ckpt_path, map_location=device)
     remapped_state = remap_old_to_new(old_state)
 
-    missing, unexpected = new_model.load_state_dict(remapped_state, strict=False)
+    # missing, unexpected = new_model.load_state_dict(remapped_state, strict=False)
+    missing, unexpected = new_model.load_state_dict(old_state, strict=False)
 
     print(" Loaded legacy checkpoint (with remapping).")
     if missing or unexpected:

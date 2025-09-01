@@ -43,7 +43,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--input_glob', type=str, help='Glob pattern to load point clouds.', default='./data/example_pcs/*.ply')
 parser.add_argument('--compressed_path', type=str, help='Path to save .bin files.', default='./data/compressed/')
 parser.add_argument('--model_load_path', type=str, help='Directory where to load trained models.', default=f'./model/exp/ckpt.pt')
-parser.add_argument('--tmc_path', type=str, help='TMC to compress bone points.', default='./tmc3')
+parser.add_argument('--tmc_path', type=str, help='TMC to compress bone points.', default='./tmc3-xos')
 
 parser.add_argument('--local_window_size', type=int, help='Local window size.', default=128)
 parser.add_argument('--verbose', type=bool, help='Print compression details.', default=False)
@@ -144,8 +144,8 @@ with torch.no_grad():
         cursor = 0
         skin_fea_ls = []
         while cursor < aligned_windows.shape[0]:
-            skin_fea_item = model.encoder.awds.mini_emb(aligned_windows[cursor:cursor+mini_batch_size])
-            skin_fea_item = model.encoder.awds.pt(aligned_windows[cursor:cursor+mini_batch_size], skin_fea_item)
+            skin_fea_item = model.awds.mini_emb(aligned_windows[cursor:cursor+mini_batch_size])
+            skin_fea_item = model.awds.pt(aligned_windows[cursor:cursor+mini_batch_size], skin_fea_item)
             skin_fea_ls.append(skin_fea_item)
             cursor = cursor + mini_batch_size
         skin_fea = torch.cat(skin_fea_ls, dim=0)
@@ -160,7 +160,7 @@ with torch.no_grad():
         if args.model_type == 'pointsoup_sa':
             ticker.start_count('Global_Corr') # 🕒 ⏳
 
-            skin_fea = model.encoder.pt_block(skin_fea)
+            skin_fea = model.pt_block(skin_fea)
 
             ticker.end_count('Global_Corr') # 🕒 ✔️
             if args.verbose:
@@ -174,7 +174,7 @@ with torch.no_grad():
             
         ticker.start_count('DWBuild') # 🕒 ⏳
 
-        dilated_idx, dilated_windows = model.entropy_model.dw_build(rec_bones)
+        dilated_idx, dilated_windows = model.dw_build(rec_bones)
 
         ticker.end_count('DWBuild') # 🕒 ✔️
         if args.verbose:
@@ -184,7 +184,7 @@ with torch.no_grad():
             
         ticker.start_count('DWEM') # 🕒 ⏳
 
-        mu, sigma = model.entropy_model.dwem(dilated_windows)
+        mu, sigma = model.dwem(dilated_windows)
 
         ticker.end_count('DWEM') # 🕒 ✔️
         if args.verbose:
@@ -194,7 +194,7 @@ with torch.no_grad():
             
         ticker.start_count('Squeezeing_Q') # 🕒 ⏳
             
-        compact_fea = model.encoder.fea_squeeze(skin_fea)
+        compact_fea = model.fea_squeeze(skin_fea)
         quantized_compact_fea = torch.round(compact_fea)
         # get quantized_compact_fea: (M, c)
 
