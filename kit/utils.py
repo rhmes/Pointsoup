@@ -1,6 +1,48 @@
 import os
 import torch
 
+# Get mapping from old to new state dict
+def remap_old_to_new(old_state):
+    new_state = {}
+    for k, v in old_state.items():
+        # Explicit pt_block remapping
+        if k.startswith("pt_block.attn."):
+            new_key = "encoder." + k
+            new_state[new_key] = v
+
+        # fea_squeeze
+        elif k.startswith("fea_squeeze"):
+            new_key = "encoder." + k
+            new_state[new_key] = v
+
+        # Encoder: awds
+        elif k.startswith("awds"):
+            new_state["encoder." + k] = v
+
+        # Entropy model
+        elif k.startswith("dwem") or k.startswith("dw_build"):
+            new_state["entropy_model." + k] = v
+
+        # Decoder
+        elif k.startswith("fea_stretch") or k.startswith("dwus"):
+            new_state["decoder." + k] = v
+
+        else:
+            print(f" Skipping unmapped key: {k}")
+    return new_state
+
+def load_legacy_checkpoint(new_model, ckpt_path, device="cpu"):
+    old_state = torch.load(ckpt_path, map_location=device)
+    remapped_state = remap_old_to_new(old_state)
+
+    missing, unexpected = new_model.load_state_dict(remapped_state, strict=False)
+
+    print(" Loaded legacy checkpoint (with remapping).")
+    if missing or unexpected:
+        print(" Missing keys (new layers not in old ckpt):", missing)
+        print(" Unexpected keys (in ckpt but unused):", unexpected)
+
+    return new_model
 
 # Define path(s) for compressed files
 def compressed_files(file_name, dir):
@@ -9,32 +51,3 @@ def compressed_files(file_name, dir):
     skin_path = os.path.join(dir, file_name+'.s.bin')
     cache_path = os.path.join(dir, '__cache__.ply')
     return head_path, bones_path, skin_path, cache_path
-
-# Remap old checkpoint keys to new model keys
-def remap_state_dict(old_state_dict, model):
-    """
-    Remap old checkpoint keys to new model keys by matching shape and partial name.
-    Returns a new state_dict compatible with the new model.
-    """
-    new_state_dict = {}
-    model_state_dict = model.state_dict()
-    used_keys = set()
-    unmatched_keys = []
-    for new_key, new_tensor in model_state_dict.items():
-        # Try exact match first
-        if new_key in old_state_dict and old_state_dict[new_key].shape == new_tensor.shape:
-            new_state_dict[new_key] = old_state_dict[new_key]
-            used_keys.add(new_key)
-            continue
-        # Try partial match by suffix
-        for old_key, old_tensor in old_state_dict.items():
-            if old_key.endswith(new_key.split('.')[-1]) and old_tensor.shape == new_tensor.shape and old_key not in used_keys:
-                new_state_dict[new_key] = old_tensor
-                used_keys.add(old_key)
-                break
-        else:
-            unmatched_keys.append(new_key)
-            new_state_dict[new_key] = new_tensor
-    if unmatched_keys:
-        raise KeyError(f"Could not map the following keys from old checkpoint: {unmatched_keys}")
-    return new_state_dict

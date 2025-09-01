@@ -61,11 +61,7 @@ if not os.path.exists(args.decompressed_path):
 # Load model
 model = network.model(args, model_type=args.model_type)
 # Load checkpoint
-ckpt = torch.load(args.model_load_path, map_location=device)
-state_dict = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
-# Remap state_dict from old struct to new struct
-new_state_dict = utils.remap_state_dict(state_dict, model)
-model.load_state_dict(new_state_dict, strict=False)
+model = utils.load_legacy_checkpoint(model, args.model_load_path, device=device)
 model = torch.compile(model)
 model = model.to(device).eval()
 
@@ -92,6 +88,7 @@ with torch.no_grad():
 
         ############## 🚩 Bone Decompression ##############
         # (io time is omitted since the tmc process can be done in RAM in practial applications)
+    
         bone_dec_time = op.tmc_decompress(args.tmc_path, bones_path, cache_path)
         rec_bones = torch.tensor(io.read_point_cloud(cache_path)).float().to(device)
         M = rec_bones.shape[0]

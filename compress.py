@@ -62,11 +62,7 @@ if not os.path.exists(args.compressed_path):
 # Load model
 model = network.model(args, model_type=args.model_type)
 # Load checkpoint
-ckpt = torch.load(args.model_load_path, map_location=device)
-state_dict = ckpt['state_dict'] if 'state_dict' in ckpt else ckpt
-# Remap state_dict from old struct to new struct
-new_state_dict = utils.remap_state_dict(state_dict, model)
-model.load_state_dict(new_state_dict, strict=False)
+model = utils.load_legacy_checkpoint(model, args.model_load_path, device=device)
 model = torch.compile(model)
 model = model.to(device).eval()
 
