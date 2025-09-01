@@ -59,9 +59,10 @@ def chamfer_distance(pc1, pc2, norm=False):
     if norm:
         min_xyz = np.min(pc1, axis=0)
         max_xyz = np.max(pc1, axis=0)
-        pc1 = (pc1 - min_xyz) / (max_xyz - min_xyz + 1e-8)
-        pc2 = (pc2 - min_xyz) / (max_xyz - min_xyz + 1e-8)
-
+        range_xyz = max_xyz - min_xyz
+        range_xyz[range_xyz == 0] = np.mean(range_xyz)  # Avoid division by zero
+        pc1 = (pc1 - min_xyz) / range_xyz
+        pc2 = (pc2 - min_xyz) / range_xyz
     # Compute all pairwise distances
     pc1 = np.asarray(pc1)
     pc2 = np.asarray(pc2)
@@ -116,6 +117,9 @@ def evaluate(files):
     with Pool(4) as p:
         results = list(tqdm(p.imap(process, files), total=f_len))
 
+    # Filter out results with NaN metrics
+    filtered_results = [r for r in results if not (np.isnan(r['d1_psnr']) or np.isnan(r['chamfer_distance']) or np.isnan(r['bpp']))]
+
     # Save to CSV in 'csv' folder, prefix with decompressed folder name
     os.makedirs(args.csv_dir, exist_ok=True)
     prefix = os.path.basename(os.path.normpath(args.decompressed_path))
@@ -125,16 +129,16 @@ def evaluate(files):
         fieldnames = ['filename', 'd1_psnr', 'chamfer_distance', 'bpp']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        for row in results:
+        for row in filtered_results:
             writer.writerow(row)
 
     # Print average metrics
-    d1_psnr_list = [r['d1_psnr'] for r in results]
-    chamfer_list = [r['chamfer_distance'] for r in results]
-    bpp_list = [r['bpp'] for r in results]
-    print('Avg. D1 PSNR:', round(np.mean(d1_psnr_list), 3))
-    print('Avg. Chamfer Distance:', round(np.mean(chamfer_list), 6))
-    print('Avg. BPP:', round(np.mean(bpp_list), 6))
+    d1_psnr_list = [r['d1_psnr'] for r in filtered_results]
+    chamfer_list = [r['chamfer_distance'] for r in filtered_results]
+    bpp_list = [r['bpp'] for r in filtered_results]
+    print('Avg. D1 PSNR:', round(np.mean(d1_psnr_list), 3) if d1_psnr_list else 'NaN')
+    print('Avg. Chamfer Distance:', round(np.mean(chamfer_list), 6) if chamfer_list else 'NaN')
+    print('Avg. BPP:', round(np.mean(bpp_list), 6) if bpp_list else 'NaN')
 
 if __name__ == '__main__':
     # Input files
