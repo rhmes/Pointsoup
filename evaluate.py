@@ -26,10 +26,9 @@ subprocess.run([
     '--input_glob', args.input_glob,
     '--compressed_path', args.compressed_path,
     '--model_load_path', args.model_load_path,
-    '--local_window_size', args.local_window_size,
-    '--tmc_path', args.tmc_path,
     '--model_type', args.model_type,
-    # '--verbose', args.verbose
+    # '--tmc_path', args.tmc_path,
+    # '--local_window_size', args.local_window_size,
 ], check=True)
 
 # Step 2: Decompression
@@ -39,8 +38,8 @@ subprocess.run([
     '--model_load_path', args.model_load_path,
     '--compressed_path', args.compressed_path,
     '--decompressed_path', args.decompressed_path,
-    '--tmc_path', args.tmc_path,
     '--model_type', args.model_type,
+    # '--tmc_path', args.tmc_path,
     # '--verbose', args.verbose
 ], check=True)
 
