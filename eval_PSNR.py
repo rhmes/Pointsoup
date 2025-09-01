@@ -55,12 +55,12 @@ def chamfer_distance(pc1, pc2, norm=False):
     pc2: (M, 3) numpy array
     returns: Chamfer Distance (float)
     """
-    # Normalize point clouds with respect to their reference
+    # Normalize point clouds using min-max scaling
     if norm:
-        mean = pc1.mean(axis=0)
-        scale = np.max(np.linalg.norm(pc1 - mean, axis=1))
-        pc1 = (pc1 - mean) / scale
-        pc2 = (pc2 - mean) / scale
+        min_xyz = np.min(pc1, axis=0)
+        max_xyz = np.max(pc1, axis=0)
+        pc1 = (pc1 - min_xyz) / (max_xyz - min_xyz + 1e-8)
+        pc2 = (pc2 - min_xyz) / (max_xyz - min_xyz + 1e-8)
 
     # Compute all pairwise distances
     pc1 = np.asarray(pc1)
