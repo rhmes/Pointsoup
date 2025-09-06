@@ -59,6 +59,13 @@ class Pointsoup(nn.Module):
 
         return rec_batch_x, bitrate
 
+# Pointsoup variant with Encoder updated to use SimpleSelfAttention
+# -----------------------------------------------------------------
+# The main difference between Pointsoup and PointsoupSelfAttention is:
+# - Pointsoup uses the standard Encoder (AWDS + feature squeeze).
+# - PointsoupSelfAttention inherits Pointsoup but replaces the encoder with EncoderUpdated,
+#   which adds a SimpleSelfAttention block after AWDS for global feature correlation.
+# This allows PointsoupSelfAttention to model more complex relationships in the point cloud.
 class PointsoupSelfAttention(nn.Module):
     def __init__(self, k, channel, bottleneck_channel):
         super(PointsoupSelfAttention, self).__init__()
@@ -117,8 +124,15 @@ class PointsoupSelfAttention(nn.Module):
 
         return rec_batch_x, bitrate
 
-# Main Pointsoup model (Pointsoup)
-class Pointsoup_v2(nn.Module):
+
+# Modular Pointsoup model
+# -----------------------------------------------------------------
+# The PointsoupModular class breaks the model into three submodules:
+#   - Encoder: feature extraction and downsampling
+#   - EntropyModel: quantization and bitrate estimation
+#   - Decoder: feature upsampling and reconstruction
+# This structure improves clarity, maintainability, and extensibility for research and development.
+class PointsoupModular(nn.Module):
     """
     Main Pointsoup model. Composes encoder, entropy model, and decoder.
     Args:
@@ -196,17 +210,15 @@ class Decoder(nn.Module):
         return rec_batch_x
 
 
-# Pointsoup variant with Encoder updated to use SimpleSelfAttention
-# -----------------------------------------------------------------
-# The main difference between Pointsoup and PointsoupSelfAttention is:
-# - Pointsoup uses the standard Encoder (AWDS + feature squeeze).
-# - PointsoupSelfAttention inherits Pointsoup but replaces the encoder with EncoderUpdated,
-#   which adds a SimpleSelfAttention block after AWDS for global feature correlation.
-# This allows PointsoupSelfAttention to model more complex relationships in the point cloud.
 
-class PointsoupSelfAttention_v2(Pointsoup_v2):
+# PointsoupSelfAttentionModular: Modular Pointsoup model with self-attention encoder
+# -------------------------------------------------------------------------------
+# This class extends PointsoupModular by replacing the encoder with EncoderSelfAttention,
+# which applies SimpleSelfAttention after AWDS for improved global feature correlation.
+# Use this for experiments requiring modularity and advanced feature modeling.
+class PointsoupSelfAttentionModular(PointsoupModular):
     """
-    Pointsoup model with EncoderSelfAttention (SimpleSelfAttention).
+    Modular Pointsoup model with EncoderSelfAttention (SimpleSelfAttention).
     Args:
         k (int): Dilated window size.
         channel (int): Feature channel size.
