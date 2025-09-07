@@ -1,4 +1,4 @@
-name: pointsoup-mps
+name: pointsoup
 channels:
   - pytorch3d
   - pytorch
@@ -35,4 +35,6 @@ dependencies:
       - tzdata==2024.1
       - pandas==2.2.1
       - open3d==0.18.0
+      # PyTorch3D build from source for CPU/MPS
+      - git+https://github.com/facebookresearch/pytorch3d.git
 
