@@ -2,7 +2,7 @@
 
 ## Jupyter Notebook Workflow & Device-Aware Environment Setup
 
-The recommended workflow for Pointsoup is documented in the Jupyter notebook `Pointsoup_setup.ipynb`. This notebook guides you through:
+The recommended workflow for Pointsoup is documented in the Jupyter notebook `Pointsoup_notebook.ipynb`. This notebook guides you through:
 - Cloning/pulling the repository
 - Setting up the conda environment (with device auto-detection)
 - Downloading and preparing the ModelNet40 dataset
@@ -38,7 +38,7 @@ Pointsoup/
 ├── evaluate.py
 ├── eval_PSNR.py
 ├── train.py
-├── Pointsoup_setup.ipynb   # Main workflow notebook
+├── Pointsoup_notebook.ipynb   # Main workflow notebook
 ├── csv/                    # Evaluation results
 ├── data/
 │   ├── example_pc_1023/    # Example point clouds
@@ -61,7 +61,7 @@ Pointsoup/
 
 ### Notes
 - Environment setup is device-aware and automated
-- See `Pointsoup_setup.ipynb` for the latest recommended workflow
+- See `Pointsoup_notebook.ipynb` for the latest recommended workflow
 - Ensure all required dependencies are installed (see environment.yml).
 
 # Pointsoup Project Updates & Contributions
@@ -69,7 +69,7 @@ Pointsoup/
 ## Contributions
 - **Encoder Update:** The Pointsoup encoder has been updated to include a simple attention layer, improving feature aggregation and overall compression performance. This change enhances the model's ability to capture global context and improves reconstruction quality.
 - **New Scripts:**
-    - `Pointsoup_setup.ipynb`: Jupyter notebook providing a comprehensive workflow for environment setup, data preparation, model training, evaluation, and visualization.
+    - `Pointsoup_notebook.ipynb`: Jupyter notebook providing a comprehensive workflow for environment setup, data preparation, model training, evaluation, and visualization.
     - `evaluate.py`: End-to-end evaluation script for compressing, decompressing, and evaluating point clouds. Calculates metrics such as PSNR and Chamfer Distance, and saves results to CSV.
     - `eval_PSNR.py`: Standalone script for evaluating geometry PSNR, Chamfer Distance, and bits-per-point (bpp) from compressed/decompressed point clouds. Results are saved in the `csv/` folder.
 - **Documentation:** Updated README with detailed usage instructions, command examples, and explanations of new features.
