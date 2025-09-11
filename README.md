@@ -70,12 +70,12 @@ Pointsoup/
 - **Encoder Update:** The Pointsoup encoder has been updated to include a simple attention layer, improving feature aggregation and overall compression performance. This change enhances the model's ability to capture global context and improves reconstruction quality.
 - **New Scripts:**
     - `Pointsoup_notebook.ipynb`: Jupyter notebook providing a comprehensive workflow for environment setup, data preparation, model training, evaluation, and visualization.
-    - `evaluate.py`: End-to-end evaluation script for compressing, decompressing, and evaluating point clouds. Calculates metrics such as PSNR and Chamfer Distance, and saves results to CSV.
-    - `eval_PSNR.py`: Standalone script for evaluating geometry PSNR, Chamfer Distance, and bits-per-point (bpp) from compressed/decompressed point clouds. Results are saved in the `csv/` folder.
+    - `evaluate.py`: End-to-end evaluation script for compressing, decompressing, and evaluating point clouds. Calculates metrics such as PSNR and bits-per-point (bpp) and saves results to CSV.
+    - `eval_PSNR.py`: Standalone script for evaluating geometry PSNR, and bits-per-point (bpp) from compressed/decompressed point clouds. Results are saved in the `csv/` folder.
 - **Documentation:** Updated README with detailed usage instructions, command examples, and explanations of new features.
 ## Effect of Updated Encoder
 - The addition of the simple attention layer in the encoder improves the aggregation of local and global features, resulting in:
-    - Higher PSNR and lower Chamfer Distance in reconstructions.
+    - Higher PSNR and lower bpp in reconstructions.
     - More robust compression, especially for complex point cloud scenes.
     - Smoother training curves and better generalization.
 
